@@ -1,0 +1,27 @@
+pyserial==3.5
+
+
+# Python 变电站作业安全监控系统 依赖清单
+
+# 图像识别与处理
+opencv-python>=4.8.0 # 图像处理，例如越线检测
+Pillow>=10.0.0       # 图像辅助处理
+
+# 激光雷达/传感器数据处理 (假设通过串口或网络接收数据)
+pyserial>=3.5        # 用于串口通信，如果您的雷达是USB/RS232/485接口
+numpy>=1.25.0        # 核心数值计算库
+scipy>=1.11.0        # 科学计算（可选）
+
+# 深度学习框架 (用于图像识别模型，例如 YOLOv8 或自定义模型)
+# 假设您使用 PyTorch
+torch>=2.0.0
+torchvision>=0.15.0
+
+# UI/前端 (假设使用流行的 Web 框架 FastAPI/Streamlit)
+fastapi>=0.104.1     # 用于搭建后台 API 服务
+uvicorn>=0.23.2      # ASGI 服务器，用于运行 FastAPI
+python-multipart>=0.0.6 # 用于处理文件上传（如模型配置）
+# 或者如果您使用 Streamlit 做快速 UI
+# streamlit>=1.28.0
+
+pyserial
