@@ -29,6 +29,8 @@ SERIAL_PORT = "/dev/tty.usbserial-1110"
 BAUDRATE = 115200
 TIMEOUT_S = 1.0
 
+_shared_lidar: Optional["AsciiLidar"] = None
+
 
 def _default_port() -> str:
     if sys.platform.startswith("win"):
@@ -125,6 +127,32 @@ class AsciiLidar:
 
 
 ToFLidar = AsciiLidar
+
+
+def get_lidar_distance() -> float | None:
+    """读取一次 LiDAR 距离（厘米）。失败返回 None。"""
+
+    global _shared_lidar
+    try:
+        if _shared_lidar is None:
+            _shared_lidar = AsciiLidar(SERIAL_PORT, baudrate=BAUDRATE, timeout=TIMEOUT_S)
+        meas = _shared_lidar.read_measurement()
+        if meas is None:
+            return None
+        distance_m, _strength = meas
+        return distance_m * 100.0
+    except SerialException as exc:
+        print(f"get_lidar_distance 串口错误：{exc}")
+    except Exception as exc:
+        print(f"get_lidar_distance 读取失败：{exc}")
+
+    if _shared_lidar is not None:
+        try:
+            _shared_lidar.close()
+        except Exception:
+            pass
+        _shared_lidar = None
+    return None
 
 
 def main() -> None:

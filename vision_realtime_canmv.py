@@ -22,7 +22,7 @@ from vision_logic import (
 
 # ======== 串口默认配置 ========
 
-DEFAULT_PORT = "/dev/tty.usbserial-110"
+DEFAULT_PORT = "/dev/tty.usbserial-1110"
 DEFAULT_BAUDRATE = 115200
 DEFAULT_TIMEOUT = 1.0  # 秒
 
@@ -87,6 +87,10 @@ class CanMVVisionSource:
         # 最近一帧的 Base64 图片缓存
         self._latest_frame_base64: Optional[str] = None
 
+        # 收集多行 Base64 的 buffer
+        self._frame_collecting: bool = False
+        self._frame_buffer: list[str] = []
+
         self._serial: Optional[serial.Serial] = None
         self._states_queue: Queue[VisionState] = Queue()
         self._stop_event = Event()
@@ -148,29 +152,77 @@ class CanMVVisionSource:
             if not text:
                 continue
 
-                          # 优先处理图像帧
-            if text.startswith("FRAME_BASE64"):
-                # 允许三种形式：
-                # "FRAME_BASE64 xxx"
-                # "FRAME_BASE64: xxx"
-                # "FRAME_BASE64\txxx"
-                parts = text.split(None, 1)  # 按空白字符拆一次
-                if len(parts) == 2:
-                    self._latest_frame_base64 = parts[1].strip()
-                    print(">>> [CanMVVisionSource] 收到 FRAME_BASE64，长度:", len(self._latest_frame_base64))
-                else:
-                    print(">>> [CanMVVisionSource] 收到 FRAME_BASE64 行但没有数据:", repr(text))
-                continue
+            # 调试：打印每一行串口收到的内容
+            print(">>> [RAW]", repr(text))
 
-            if text.startswith("FRAME_BASE64_ERROR"):
-                print(">>> [CanMVVisionSource] FRAME_BASE64_ERROR:", text)
-                continue
+            # ========== 1. 处理 FRAME_BASE64 / JPEG Base64 相关 ==========
+            if "FRAME_BASE64" in text or "/9j/" in text or self._frame_collecting:
+                if "FRAME_BASE64" in text:
+                    self._frame_collecting = True
+                    self._frame_buffer.clear()
+                    idx = text.find("/9j/")
+                    if idx >= 0:
+                        first_chunk = text[idx:].strip()
+                    else:
+                        marker = text.find("FRAME_BASE64")
+                        first_chunk = text[marker + len("FRAME_BASE64") :].strip()
+                    if first_chunk:
+                        self._frame_buffer.append(first_chunk)
+                        print(">>> [CanMVVisionSource] 开始收集图像数据，首段长度:",
+                              len(first_chunk))
+                    else:
+                        print(">>> [CanMVVisionSource] FRAME_BASE64 行没有明显 Base64 负载:", repr(text))
+                    continue
 
+                if self._frame_collecting and not text.startswith("VISION "):
+                    chunk = text.strip()
+                    if chunk:
+                        self._frame_buffer.append(chunk)
+                        print(">>> [CanMVVisionSource] 追加图像数据，当前片段长度:",
+                              len(chunk))
+                    continue
+
+                if text.startswith("VISION "):
+                    if self._frame_collecting and self._frame_buffer:
+                        payload = "".join(self._frame_buffer).replace(" ", "").replace("\\n", "")
+                        if payload:
+                            self._latest_frame_base64 = payload
+                            print(">>> [CanMVVisionSource] 完成多行图像收集，总长度:",
+                                  len(self._latest_frame_base64))
+                        else:
+                            print(">>> [CanMVVisionSource] 收集到的 Base64 为空")
+                    self._frame_collecting = False
+                    self._frame_buffer.clear()
+                    # 不要 continue，VISION 行还需继续解析
+
+                elif text.startswith("/9j/"):
+                    payload = text.strip()
+                    if payload:
+                        self._latest_frame_base64 = payload
+                        print(">>> [CanMVVisionSource] 收到单行图像数据，长度:",
+                              len(self._latest_frame_base64))
+                    else:
+                        print(">>> [CanMVVisionSource] '/9j/' 行却没有有效内容:", repr(text))
+                    continue
+
+            # ========== 2. 处理 VISION 行 ==========
             state = parse_vision_line(text)
             if state:
-                print(">>> [CanMVVisionSource] 收到 VISION 状态，当前是否有缓存图像帧:", bool(self._latest_frame_base64))
+                try:
+                    setattr(state, "frame_base64", self._latest_frame_base64)
+                except Exception as exc:
+                    print(">>> [CanMVVisionSource] 无法为 VisionState 设置 frame_base64:", exc)
+
+                print(
+                    ">>> [CanMVVisionSource] 收到 VISION 状态，当前是否有缓存图像帧:",
+                    bool(self._latest_frame_base64),
+                )
                 self._latest_state = state
                 self._states_queue.put(state)
+                continue
+
+            # ========== 3. 其他行丢弃 ==========
+            # parse_vision_line 已经打印过 "非VISION行" 日志了
 
     def stream_states(self) -> Iterator[VisionState]:
         """
