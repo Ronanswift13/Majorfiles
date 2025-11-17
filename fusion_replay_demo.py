@@ -60,6 +60,15 @@ def replay_fusion_log(csv_path: str, speed: float = 1.0) -> None:
             time.sleep(dt)
 
 
+def run_replay_demo(csv_path: str = "fusion_log.csv", speed: float = 1.0) -> None:
+    print(f"=== fusion_replay_demo: replaying {csv_path} at {speed}x ===")
+
+    try:
+        replay_fusion_log(csv_path, speed)
+    except KeyboardInterrupt:
+        print("\n[fusion_replay_demo] stopped by user")
+
+
 def main() -> None:
     csv_path = "fusion_log.csv"
     speed = 1.0
@@ -73,10 +82,8 @@ def main() -> None:
             print(f"Invalid speed value '{sys.argv[2]}', using default 1.0")
             speed = 1.0
 
-    print(f"=== fusion_replay_demo: replaying {csv_path} at {speed}x ===")
-
     try:
-        replay_fusion_log(csv_path, speed)
+        run_replay_demo(csv_path, speed)
     except KeyboardInterrupt:
         print("\n[fusion_replay_demo] stopped by user")
 

@@ -4,7 +4,7 @@ import csv
 from typing import List
 
 
-def main() -> None:
+def run_analysis() -> None:
     path = "fusion_log.csv"
     rows: List[dict[str, str]] = []
 
@@ -74,6 +74,10 @@ def main() -> None:
     )
     summary += f" | person_present_true={person_present_true}"
     print(summary)
+
+
+def main() -> None:
+    run_analysis()
 
 
 if __name__ == "__main__":

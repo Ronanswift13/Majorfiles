@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from test_fusion_logic import run_tests
+
+if __name__ == "__main__":
+    print("Running fusion logic self-tests...")
+    run_tests()
+    print("All fusion tests passed ✅")

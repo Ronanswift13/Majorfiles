@@ -20,7 +20,7 @@ def build_dummy_vision() -> VisionState:
     )
 
 
-def main() -> None:
+def run_record_demo() -> None:
     csv_path = "fusion_log.csv"
 
     if not os.path.exists(csv_path):
@@ -68,6 +68,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        run_record_demo()
     except KeyboardInterrupt:
         print("\nfusion_record_demo stopped by user")
