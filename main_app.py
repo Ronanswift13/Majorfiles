@@ -1,52 +1,67 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
+import sys
+from pathlib import Path
 
-from analyze_fusion_log import run_analysis
-from fusion_record_demo import run_record_demo
-from fusion_replay_demo import run_replay_demo
-from fusion_ui_demo import run_ui
-from fusion_demo import main as run_cli_demo  # existing CLI demo still uses main()
-from test_fusion_logic import run_tests
+# 当前目录（laser_distance）
+ROOT = Path(__file__).resolve().parent
+
+
+def run_script(script_name: str, *extra_args: str) -> None:
+    """
+    用当前虚拟环境的 Python 去运行同目录下的脚本，
+    不再依赖脚本里有没有定义 run_xxx() 之类的函数。
+    """
+    script_path = ROOT / script_name
+    cmd = [sys.executable, str(script_path), *extra_args]
+    subprocess.run(cmd, check=True)
 
 
 def main() -> None:
-    banner = (
-        "Lidar/Vision Fusion Main App\n"
-        "Modes:\n"
-        "  ui      - start live Flet UI with LIDAR\n"
-        "  record  - record fusion_log.csv\n"
-        "  replay  - replay fusion_log.csv in console\n"
-        "  analyze - print statistics from fusion_log.csv\n"
-        "  cli     - run terminal fusion demo\n"
-        "  test    - execute fusion self-tests\n"
+    parser = argparse.ArgumentParser(
+        description="Lidar / Vision fusion main entry.",
     )
-    print(banner)
-
-    parser = argparse.ArgumentParser(description="Main launcher for fusion demos/tools.")
     parser.add_argument(
-        "-m",
-        "--mode",
+        "mode",
         choices=["ui", "record", "replay", "analyze", "cli", "test"],
-        default="ui",
-        help="Mode to launch (default: ui)",
+        help=(
+            "ui      - start live Flet UI with LIDAR\n"
+            "record  - record fusion_log.csv\n"
+            "replay  - replay fusion_log.csv in console\n"
+            "analyze - print statistics from fusion_log.csv\n"
+            "cli     - run terminal fusion demo\n"
+            "test    - execute fusion self-tests"
+        ),
     )
+
     args = parser.parse_args()
 
     if args.mode == "ui":
-        run_ui()
+        # 打开 Flet UI 界面
+        run_script("fusion_ui_demo.py")
+
     elif args.mode == "record":
-        run_record_demo()
+        # 确保 data 目录存在，然后录制 fusion_log.csv
+        (ROOT / "data").mkdir(exist_ok=True)
+        run_script("fusion_record_demo.py")
+
     elif args.mode == "replay":
-        run_replay_demo()
+        # 在终端重放 fusion_log.csv
+        run_script("fusion_replay_demo.py")
+
     elif args.mode == "analyze":
-        run_analysis()
+        # 对 fusion_log.csv 做统计分析
+        run_script("analyze_fusion_log.py")
+
     elif args.mode == "cli":
-        run_cli_demo()
+        # 只在终端里实时打印融合结果
+        run_script("fusion_demo.py")
+
     elif args.mode == "test":
-        print("Running fusion logic self-tests...")
-        run_tests()
-        print("All fusion tests passed ✅")
+        # 跑 self-test（你之前已经验证过）
+        run_script("test_fusion_logic.py")
 
 
 if __name__ == "__main__":

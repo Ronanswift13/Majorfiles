@@ -3,7 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from lidar_tof import get_lidar_distance
+try:
+    from new_lidar import get_lidar_distance_cm as get_lidar_distance
+except ModuleNotFoundError:  # when executed as a module (python -m)
+    from .new_lidar import get_lidar_distance_cm as get_lidar_distance  # type: ignore
 from vision_logic import VisionState, LinePosition, BodyOrientation, GestureCode
 from fusion_logic import fuse_sensors
 

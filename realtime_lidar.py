@@ -8,13 +8,14 @@ import sys
 import time
 from dataclasses import dataclass
 from collections import deque
-from typing import Iterable, Iterator, Optional
+from typing import Iterable, Iterator, Optional, Set
 
 import serial
 
 
-from cabinet_positioning import CABINETS, distance_to_cabinet
+from cabinet_positioning import CABINETS
 from lidar_tof import ToFLidar, SerialException
+from lidar_zone_logic import CabinetZone, LidarDecision, LidarZoneTracker
 
 @dataclass
 class LidarMeasurement:
@@ -50,6 +51,10 @@ class RealtimeLidarSource:
         self._lidar = ToFLidar(port, baudrate=baudrate, timeout=timeout)
         self._window: deque[float] = deque(maxlen=max(1, window_size))
         self._last_average: Optional[float] = None
+        zones = [CabinetZone(idx, bounds[0], bounds[1]) for idx, bounds in sorted(CABINETS.items())]
+        self._zone_tracker = LidarZoneTracker(zones)
+        self._authorized_cabinets: Set[int] = set()
+        self._last_decision: Optional[LidarDecision] = None
 
     def close(self) -> None:
         """关闭内部雷达实例，释放串口资源。"""
@@ -94,16 +99,32 @@ class RealtimeLidarSource:
 
         return self._last_average
 
+    def set_authorized_cabinets(self, cabinet_ids: Iterable[int]) -> None:
+        """更新允许检修的机位集合，供后续扩展更丰富的 LiDAR 决策。"""
+
+        self._authorized_cabinets = set(cabinet_ids)
+
+    @property
+    def last_decision(self) -> Optional[LidarDecision]:
+        """最近一次 LiDAR 决策结果（未被 UI 使用，但便于未来扩展）。"""
+
+        return self._last_decision
+
     def read_measurement_once(self) -> LidarMeasurement:
         """读取一次测量并封装为 LidarMeasurement。
 
-        该方法会调用内部的 `_read_average_distance` 更新滑动平均，并基于
-        cabinet_positioning.distance_to_cabinet 将距离映射为机位编号。
+        该方法会调用内部的 `_read_average_distance` 更新滑动平均，并通过
+        `LidarZoneTracker` 推断出当前对应的机位索引。
         """
         avg_distance = self._read_average_distance()
         ts = time.time()
 
         if avg_distance is None or avg_distance <= 0:
+            self._last_decision = self._zone_tracker.update(
+                None,
+                authorized_cabinets=self._authorized_cabinets,
+                now=ts,
+            )
             # 无有效距离时，用负数占位，并将机位号标记为 None
             return LidarMeasurement(
                 distance_m=-1.0,
@@ -112,7 +133,12 @@ class RealtimeLidarSource:
                 timestamp=ts,
             )
 
-        cabinet_id = distance_to_cabinet(avg_distance)
+        self._last_decision = self._zone_tracker.update(
+            avg_distance,
+            authorized_cabinets=self._authorized_cabinets,
+            now=ts,
+        )
+        cabinet_id = self._last_decision.cabinet_index
         return LidarMeasurement(
             distance_m=avg_distance,
             cabinet_index=cabinet_id,

@@ -5,7 +5,7 @@ import os
 import time
 from datetime import datetime
 
-from lidar_tof import get_lidar_distance
+from new_lidar import get_lidar_distance_cm as get_lidar_distance
 from vision_logic import VisionState, LinePosition, BodyOrientation, GestureCode
 from fusion_logic import fuse_sensors
 

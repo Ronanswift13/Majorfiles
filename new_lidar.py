@@ -1,6 +1,6 @@
 # new_lidar_driver.py
 """
-简单的新激光测距模块驱动：
+激光测距模块驱动：
 提供一个函数 get_lidar_distance_cm()，返回距离（单位：cm，float）。
 """
 
@@ -11,7 +11,7 @@ import serial
 from time import sleep
 
 PORT_CANDIDATES = [
-    "/dev/tty.usbserial-1120",
+    "/dev/tty.usbserial-1130",
     "/dev/tty.usbserial-1110",
     "/dev/ttyUSB0",
     "COM5",
@@ -45,7 +45,7 @@ def _read_one_frame(ser: serial.Serial) -> bytes:
 def _parse_distance_from_frame(frame: bytes) -> float:
     """
     从返回帧中解析距离（单位：米），再返回 float。
-    约定：有效 ASCII 区间是 frame[3:-1]，与 debug 一致。
+    约定：有效 ASCII 区间是 frame[3:-1]
     """
     ascii_part = frame[3:-1].decode(errors="ignore").strip()
 

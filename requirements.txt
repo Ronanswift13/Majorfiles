@@ -23,5 +23,6 @@ uvicorn>=0.23.2      # ASGI 服务器，用于运行 FastAPI
 python-multipart>=0.0.6 # 用于处理文件上传（如模型配置）
 # 或者如果您使用 Streamlit 做快速 UI
 # streamlit>=1.28.0
+flet>=0.21.0         # Flet UI 框架
 
 pyserial
